@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Ticketing System — Architecture Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Lato:wght@300;400&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ── Reset ──────────────────────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html {
+      scroll-behavior: smooth
+    }
+
+    /* ── Design tokens ──────────────────────────────────────────────── */
+    :root {
+      --bg: #0e0f11;
+      --bg2: #15171a;
+      --bg3: #1c1f23;
+      --bg4: #23272d;
+      --border: #2a2e35;
+      --border2: #353b44;
+      --text: #e8eaed;
+      --text2: #9aa0aa;
+      --text3: #5a6170;
+      --amber: #f5a623;
+      --amber-dim: #3d2e0e;
+      --teal: #3ecfb2;
+      --teal-dim: #0e2e29;
+      --coral: #f07060;
+      --coral-dim: #2e1510;
+      --blue: #5b9cf6;
+      --blue-dim: #0e1e3d;
+      --green: #5ecb7a;
+      --green-dim: #0e2a18;
+      --purple: #a78bfa;
+      --purple-dim: #1e1535;
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'Lato', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --radius: 8px;
+      --radius-lg: 14px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, .45);
+    }
+
+    /* ── Base ───────────────────────────────────────────────────────── */
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.7;
+      font-weight: 400;
+      min-height: 100vh;
+    }
+
+    /* subtle dot-grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle, #2a2e35 1px, transparent 1px);
+      background-size: 28px 28px;
+      opacity: .35;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 48px 32px 96px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    .header {
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeUp .5s ease both;
+    }
+
+    .header-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 12px;
+    }
+
+    .header-title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+
+    .header-title span {
+      color: var(--amber);
+    }
+
+    .header-sub {
+      font-size: 14px;
+      color: var(--text2);
+      font-family: var(--font-mono);
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .hbadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+
+    .hbadge.domain {
+      border-color: var(--coral);
+      color: var(--coral);
+    }
+
+    .hbadge.app {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .hbadge.infra {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .hbadge.pres {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .hbadge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ── Tab bar ────────────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      gap: 2px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+      margin-bottom: 32px;
+      animation: fadeUp .5s .1s ease both;
+    }
+
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 10px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text3);
+      background: transparent;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all .2s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .tab-btn:hover {
+      color: var(--text2);
+      background: var(--bg3);
+    }
+
+    .tab-btn.active {
+      color: var(--bg);
+      background: var(--amber);
+      box-shadow: 0 2px 12px rgba(245, 166, 35, .35);
+    }
+
+    .tab-pane {
+      display: none;
+      animation: fadeUp .3s ease both;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* ── Section heading ─────────────────────────────────────────────── */
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin: 28px 0 12px;
+    }
+
+    /* ── Tree ───────────────────────────────────────────────────────── */
+    .tree-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      overflow-x: auto;
+    }
+
+    .tree {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 2;
+      color: var(--text2);
+      white-space: pre;
+    }
+
+    .tree .dir {
+      color: var(--blue);
+    }
+
+    .tree .file {
+      color: var(--text2);
+    }
+
+    .tree .cmt {
+      color: var(--text3);
+      font-style: italic;
+    }
+
+    .tree .layer-d {
+      color: var(--coral);
+    }
+
+    .tree .layer-a {
+      color: var(--amber);
+    }
+
+    .tree .layer-i {
+      color: var(--green);
+    }
+
+    .tree .layer-p {
+      color: var(--blue);
+    }
+
+    .ltag {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      vertical-align: middle;
+      font-style: normal;
+    }
+
+    .ltag-d {
+      background: var(--coral-dim);
+      color: var(--coral);
+    }
+
+    .ltag-a {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .ltag-i {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .ltag-p {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .dep-rule {
+      margin-top: 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--amber);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.7;
+    }
+
+    .dep-rule strong {
+      color: var(--amber);
+    }
+
+    /* ── Rule cards ─────────────────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .filter-btn {
+      padding: 5px 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text3);
+      transition: all .18s ease;
+    }
+
+    .filter-btn:hover {
+      color: var(--text2);
+      border-color: var(--text3);
+    }
+
+    .filter-btn.on {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: var(--bg);
+    }
+
+    .rule-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 10px;
+      transition: border-color .2s;
+    }
+
+    .rule-card:hover {
+      border-color: var(--border2);
+    }
+
+    .rule-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .rule-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .rule-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .rb-event {
+      background: var(--coral-dim);
+      color: var(--coral);
+    }
+
+    .rb-booking {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .rb-ticket {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .rb-refund {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .rule-body {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.75;
+    }
+
+    .rule-body ul {
+      padding-left: 18px;
+    }
+
+    .rule-body li {
+      margin-bottom: 3px;
+    }
+
+    .rule-body code {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      background: var(--bg4);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--teal);
+    }
+
+    /* State machines */
+    .sm-block {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+    }
+
+    .sm-row {
+      margin-bottom: 18px;
+    }
+
+    .sm-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .sm-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 8px;
+    }
+
+    .sm-flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .spill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .sp-draft {
+      background: var(--bg4);
+      color: var(--text2);
+      border: 1px solid var(--border2);
+    }
+
+    .sp-pub {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .sp-cancel {
+      background: var(--coral-dim);
+      color: var(--coral);
+    }
+
+    .sp-complete {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .sp-pending {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .sp-paid {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .sp-expired {
+      background: var(--coral-dim);
+      color: var(--coral);
+    }
+
+    .sp-refunded {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    .sp-active {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .sp-checked {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .sp-requested {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .sp-approved {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .sp-rejected {
+      background: var(--coral-dim);
+      color: var(--coral);
+    }
+
+    .sp-paidout {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    .arrow-sm {
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    /* ── Domain model cards ──────────────────────────────────────────── */
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .model-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .model-card:hover {
+      border-color: var(--border2);
+    }
+
+    .mc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mc-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .mc-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    .mb-agg {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    .mb-ent {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .mb-vo {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .mb-svc {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .mc-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text3);
+      padding: 0 16px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mc-fields {
+      padding: 4px 0 6px;
+    }
+
+    .mc-field {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 16px;
+      font-size: 12px;
+      color: var(--text2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mc-field:last-child {
+      border-bottom: none;
+    }
+
+    .mc-field-type {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--teal);
+    }
+
+    .mc-note {
+      padding: 10px 16px;
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--font-mono);
+      border-top: 1px solid var(--border);
+      background: var(--bg3);
+    }
+
+    /* Events row */
+    .events-row {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .ev-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      background: var(--bg4);
+      color: var(--text2);
+      border: 1px solid var(--border2);
+      transition: all .15s;
+    }
+
+    .ev-tag:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    /* ── Glossary ────────────────────────────────────────────────────── */
+    .gloss-section {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .gloss-head {
+      padding: 10px 16px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text3);
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gloss-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .gloss-table th {
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text3);
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .gloss-table td {
+      padding: 9px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .gloss-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .gloss-table td:first-child {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--teal);
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .gloss-table td:nth-child(2) {
+      color: var(--text2);
+    }
+
+    .gloss-table td:last-child {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text3);
+      white-space: nowrap;
+    }
+
+    /* ── Animations ─────────────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────── */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg)
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media(max-width:600px) {
+      .page {
+        padding: 24px 16px 64px
+      }
+
+      .tab-btn span {
+        display: none
+      }
+
+      .tab-btn {
+        flex: 0 0 auto;
+        padding: 9px 13px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-eyebrow">EF234402 · Konstruksi Perangkat Lunak</div>
+      <h1 class="header-title">Event Ticketing<br />&amp; <span>Booking System</span></h1>
+      <div class="header-sub">Clean Architecture + Domain-Driven Design · Week 8 Reference</div>
+      <div class="header-badges">
+        <span class="hbadge domain"><span class="hbadge-dot"></span>Domain</span>
+        <span class="hbadge app"><span class="hbadge-dot"></span>Application</span>
+        <span class="hbadge infra"><span class="hbadge-dot"></span>Infrastructure</span>
+        <span class="hbadge pres"><span class="hbadge-dot"></span>Presentation</span>
+      </div>
+    </header>
+
+    <!-- Tab bar -->
+    <div class="tab-bar" role="tablist">
+      <button class="tab-btn active" onclick="switchTab('structure',this)" role="tab">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 7h4v4H3zm0 6h4v4H3zm6-6h12M9 12h12M9 18h12" />
+        </svg>
+        <span>Project structure</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('rules',this)" role="tab">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        <span>Business rules</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('model',this)" role="tab">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="2" />
+          <circle cx="5" cy="19" r="2" />
+          <circle cx="19" cy="19" r="2" />
+          <path d="M12 7v4M12 11l-5 6M12 11l5 6" />
+        </svg>
+        <span>Domain model</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('glossary',this)" role="tab">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+        <span>Ubiquitous language</span>
+      </button>
+    </div>
+
+    <!-- ── TAB 1: STRUCTURE ── -->
+    <div class="tab-pane active" id="tab-structure">
+      <div class="tree-wrap">
+        <div class="tree"><span class="layer-d">event-ticketing-system/</span>
+          ├── <span class="dir">src/</span>
+          │ ├── <span class="dir">domain/</span><span class="ltag ltag-d">domain layer</span>
+          │ │ ├── <span class="dir">shared/</span>
+          │ │ │ ├── <span class="file">aggregate-root.ts</span> <span class="cmt">← base class, collects domain
+            events</span>
+          │ │ │ ├── <span class="file">entity.ts</span>
+          │ │ │ ├── <span class="file">value-object.ts</span>
+          │ │ │ └── <span class="file">domain-event.interface.ts</span>
+          │ │ │
+          │ │ ├── <span class="dir">event/</span>
+          │ │ │ ├── <span class="dir">aggregates/</span>
+          │ │ │ │ └── <span class="file">event.aggregate.ts</span> <span class="cmt">← Event root aggregate</span>
+          │ │ │ ├── <span class="dir">entities/</span>
+          │ │ │ │ └── <span class="file">ticket-category.entity.ts</span>
+          │ │ │ ├── <span class="dir">value-objects/</span>
+          │ │ │ │ ├── <span class="file">event-id.vo.ts</span>
+          │ │ │ │ ├── <span class="file">event-status.vo.ts</span> <span class="cmt">← Draft | Published | Cancelled |
+            Completed</span>
+          │ │ │ │ └── <span class="file">ticket-category-status.vo.ts</span>
+          │ │ │ ├── <span class="dir">events/</span>
+          │ │ │ │ ├── <span class="file">event-created.event.ts</span>
+          │ │ │ │ ├── <span class="file">event-published.event.ts</span>
+          │ │ │ │ ├── <span class="file">event-cancelled.event.ts</span>
+          │ │ │ │ ├── <span class="file">ticket-category-created.event.ts</span>
+          │ │ │ │ └── <span class="file">ticket-category-disabled.event.ts</span>
+          │ │ │ └── <span class="dir">repositories/</span>
+          │ │ │ └── <span class="file">event.repository.interface.ts</span>
+          │ │ │
+          │ │ ├── <span class="dir">booking/</span>
+          │ │ │ ├── <span class="dir">aggregates/</span>
+          │ │ │ │ └── <span class="file">booking.aggregate.ts</span> <span class="cmt">← Booking root aggregate</span>
+          │ │ │ ├── <span class="dir">entities/</span>
+          │ │ │ │ └── <span class="file">ticket.entity.ts</span>
+          │ │ │ ├── <span class="dir">value-objects/</span>
+          │ │ │ │ ├── <span class="file">booking-id.vo.ts</span>
+          │ │ │ │ ├── <span class="file">booking-status.vo.ts</span> <span class="cmt">← PendingPayment | Paid | Expired
+            | Refunded</span>
+          │ │ │ │ ├── <span class="file">ticket-code.vo.ts</span> <span class="cmt">← unique, immutable</span>
+          │ │ │ │ ├── <span class="file">ticket-status.vo.ts</span> <span class="cmt">← Active | CheckedIn |
+            Cancelled</span>
+          │ │ │ │ └── <span class="file">money.vo.ts</span> <span class="cmt">← amount + currency</span>
+          │ │ │ ├── <span class="dir">events/</span>
+          │ │ │ │ ├── <span class="file">ticket-reserved.event.ts</span>
+          │ │ │ │ ├── <span class="file">booking-paid.event.ts</span>
+          │ │ │ │ ├── <span class="file">booking-expired.event.ts</span>
+          │ │ │ │ └── <span class="file">ticket-checked-in.event.ts</span>
+          │ │ │ ├── <span class="dir">domain-services/</span>
+          │ │ │ │ ├── <span class="file">booking-pricing.service.ts</span> <span class="cmt">← total price + service
+            fee</span>
+          │ │ │ │ └── <span class="file">ticket-code-generator.service.ts</span>
+          │ │ │ └── <span class="dir">repositories/</span>
+          │ │ │ └── <span class="file">booking.repository.interface.ts</span>
+          │ │ │
+          │ │ └── <span class="dir">refund/</span>
+          │ │ ├── <span class="dir">aggregates/</span>
+          │ │ │ └── <span class="file">refund.aggregate.ts</span>
+          │ │ ├── <span class="dir">value-objects/</span>
+          │ │ │ ├── <span class="file">refund-id.vo.ts</span>
+          │ │ │ └── <span class="file">refund-status.vo.ts</span> <span class="cmt">← Requested | Approved | Rejected |
+            PaidOut</span>
+          │ │ ├── <span class="dir">events/</span>
+          │ │ │ ├── <span class="file">refund-requested.event.ts</span>
+          │ │ │ ├── <span class="file">refund-approved.event.ts</span>
+          │ │ │ ├── <span class="file">refund-rejected.event.ts</span>
+          │ │ │ └── <span class="file">refund-paid-out.event.ts</span>
+          │ │ └── <span class="dir">repositories/</span>
+          │ │ └── <span class="file">refund.repository.interface.ts</span>
+          │ │
+          │ ├── <span class="dir">application/</span><span class="ltag ltag-a">application layer</span>
+          │ │ ├── <span class="dir">event/</span>
+          │ │ │ ├── <span class="dir">commands/</span> create-event · publish-event · cancel-event
+          │ │ │ │ create-ticket-category · disable-ticket-category
+          │ │ │ ├── <span class="dir">queries/</span> get-available-events · get-event-detail
+          │ │ │ │ get-sales-report · get-participants
+          │ │ │ └── <span class="dir">dtos/</span> event.dto · ticket-category.dto
+          │ │ ├── <span class="dir">booking/</span>
+          │ │ │ ├── <span class="dir">commands/</span> create-booking · pay-booking
+          │ │ │ │ expire-booking · check-in-ticket
+          │ │ │ ├── <span class="dir">queries/</span> get-customer-tickets
+          │ │ │ └── <span class="dir">dtos/</span> booking.dto · ticket.dto
+          │ │ ├── <span class="dir">refund/</span>
+          │ │ │ ├── <span class="dir">commands/</span> request-refund · approve-refund
+          │ │ │ │ reject-refund · mark-refund-paid-out
+          │ │ │ └── <span class="dir">dtos/</span> refund.dto
+          │ │ └── <span class="dir">ports/</span> <span class="cmt">← interfaces implemented by infrastructure</span>
+          │ │ ├── <span class="file">payment-gateway.interface.ts</span>
+          │ │ ├── <span class="file">refund-payment.interface.ts</span>
+          │ │ └── <span class="file">notification.interface.ts</span>
+          │ │
+          │ ├── <span class="dir">infrastructure/</span><span class="ltag ltag-i">infrastructure layer</span>
+          │ │ ├── <span class="dir">persistence/</span>
+          │ │ │ ├── <span class="dir">postgresql/</span>
+          │ │ │ │ ├── <span class="file">database.config.ts</span>
+          │ │ │ │ └── <span class="dir">migrations/</span>
+          │ │ │ │ ├── <span class="file">001_create_events.sql</span>
+          │ │ │ │ ├── <span class="file">002_create_bookings.sql</span>
+          │ │ │ │ └── <span class="file">003_create_refunds.sql</span>
+          │ │ │ └── <span class="dir">repositories/</span>
+          │ │ │ ├── <span class="file">pg-event.repository.ts</span>
+          │ │ │ ├── <span class="file">pg-booking.repository.ts</span>
+          │ │ │ └── <span class="file">pg-refund.repository.ts</span>
+          │ │ └── <span class="dir">services/</span>
+          │ │ ├── <span class="file">stripe-payment-gateway.service.ts</span>
+          │ │ ├── <span class="file">bank-refund-payment.service.ts</span>
+          │ │ └── <span class="file">email-notification.service.ts</span>
+          │ │
+          │ └── <span class="dir">presentation/</span><span class="ltag ltag-p">presentation layer</span>
+          │ ├── <span class="dir">controllers/</span>
+          │ │ ├── <span class="file">event.controller.ts</span> <span class="cmt">← POST /events PUT
+            /events/:id/publish</span>
+          │ │ ├── <span class="file">booking.controller.ts</span> <span class="cmt">← POST /bookings POST
+            /bookings/:id/pay</span>
+          │ │ ├── <span class="file">ticket.controller.ts</span> <span class="cmt">← GET /tickets POST
+            /tickets/:code/check-in</span>
+          │ │ └── <span class="file">refund.controller.ts</span> <span class="cmt">← POST /refunds PUT
+            /refunds/:id/approve</span>
+          │ └── <span class="dir">middleware/</span>
+          │ ├── <span class="file">auth.middleware.ts</span>
+          │ └── <span class="file">error-handler.middleware.ts</span>
+          │
+          ├── <span class="dir">tests/</span>
+          │ └── <span class="dir">domain/</span> <span class="cmt">← unit tests for domain logic only</span>
+          │ ├── <span class="file">event.aggregate.spec.ts</span>
+          │ ├── <span class="file">booking.aggregate.spec.ts</span>
+          │ └── <span class="file">refund.aggregate.spec.ts</span>
+          ├── <span class="file">README.md</span>
+          ├── <span class="file">docker-compose.yml</span>
+          ├── <span class="file">tsconfig.json</span>
+          └── <span class="file">package.json</span></div>
+      </div>
+      <div class="dep-rule">
+        <strong>Dependency rule (mandatory)</strong> — Dependencies point inward only:
+        Presentation → Application → Domain. Infrastructure implements interfaces defined in Application.
+        The Domain layer has <strong>zero</strong> external imports — no framework, no ORM, no HTTP library.
+      </div>
+    </div>
+
+    <!-- ── TAB 2: BUSINESS RULES ── -->
+    <div class="tab-pane" id="tab-rules">
+      <div class="filter-bar">
+        <button class="filter-btn on" onclick="filterRules('all',this)">All</button>
+        <button class="filter-btn" onclick="filterRules('event',this)">Event</button>
+        <button class="filter-btn" onclick="filterRules('booking',this)">Booking</button>
+        <button class="filter-btn" onclick="filterRules('ticket',this)">Ticket</button>
+        <button class="filter-btn" onclick="filterRules('refund',this)">Refund</button>
+      </div>
+      <div id="rules-list">
+        <div class="rule-card" data-cat="event">
+          <div class="rule-header"><span class="rule-badge rb-event">Event</span><span class="rule-title">Event creation
+              constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>End date must be strictly after start date</li>
+              <li>Maximum capacity must be greater than zero</li>
+              <li>Newly created event status is always <code>Draft</code></li>
+              <li>Raises domain event <code>EventCreated</code> on success</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="event">
+          <div class="rule-header"><span class="rule-badge rb-event">Event</span><span class="rule-title">Event
+              publishing constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Must have at least one <em>active</em> ticket category</li>
+              <li>Total ticket quota across all categories must not exceed max capacity</li>
+              <li>Only <code>Draft</code> → <code>Published</code> transition is allowed</li>
+              <li>A <code>Cancelled</code> event cannot be published</li>
+              <li>Raises <code>EventPublished</code> on success</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="event">
+          <div class="rule-header"><span class="rule-badge rb-event">Event</span><span class="rule-title">Event
+              cancellation constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Only a <code>Published</code> event can be cancelled</li>
+              <li>A <code>Completed</code> event cannot be cancelled</li>
+              <li>All ticket categories become non-purchasable on cancellation</li>
+              <li>All <code>Paid</code> bookings must be flagged for refund automatically</li>
+              <li>Raises <code>EventCancelled</code> on success</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="event">
+          <div class="rule-header"><span class="rule-badge rb-event">Event</span><span class="rule-title">Ticket
+              category constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Price must be ≥ 0; quota must be &gt; 0</li>
+              <li>Sales end date must be ≤ event start date</li>
+              <li>Cumulative quota of all categories ≤ event max capacity</li>
+              <li>A disabled category is retained for historical data</li>
+              <li>Raises <code>TicketCategoryCreated</code> / <code>TicketCategoryDisabled</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="booking">
+          <div class="rule-header"><span class="rule-badge rb-booking">Booking</span><span class="rule-title">Booking
+              creation constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Event must be <code>Published</code></li>
+              <li>Ticket category must be <code>Active</code></li>
+              <li>Current date must fall within the ticket's sales period</li>
+              <li>Quantity must be &gt; 0 and ≤ remaining quota</li>
+              <li>A customer cannot have more than one <em>active</em> booking per event</li>
+              <li>Initial booking status is <code>PendingPayment</code></li>
+              <li>Payment deadline is set to <strong>now + 15 minutes</strong></li>
+              <li>Raises <code>TicketReserved</code> — quota is deducted immediately</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="booking">
+          <div class="rule-header"><span class="rule-badge rb-booking">Booking</span><span class="rule-title">Payment
+              constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Booking must have status <code>PendingPayment</code></li>
+              <li>Current time must be before the payment deadline</li>
+              <li>Payment amount must exactly equal the booking total price</li>
+              <li>Total = (unit price × quantity) + service fee; cannot be negative</li>
+              <li>Total price is represented as the <code>Money</code> value object</li>
+              <li>On success: status → <code>Paid</code>; tickets are issued with unique codes; raises
+                <code>BookingPaid</code>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="booking">
+          <div class="rule-header"><span class="rule-badge rb-booking">Booking</span><span class="rule-title">Booking
+              expiry constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Only <code>PendingPayment</code> bookings can expire</li>
+              <li>A <code>Paid</code> booking cannot be expired</li>
+              <li>On expiry: reserved quota is released; status → <code>Expired</code></li>
+              <li>Raises <code>BookingExpired</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="ticket">
+          <div class="rule-header"><span class="rule-badge rb-ticket">Ticket</span><span class="rule-title">Check-in
+              constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Ticket must have status <code>Active</code></li>
+              <li>Ticket must belong to the event being checked into</li>
+              <li>Check-in is only allowed on the event day or within the allowed window</li>
+              <li>A <code>CheckedIn</code> ticket cannot be used again</li>
+              <li>On success: status → <code>CheckedIn</code>; raises <code>TicketCheckedIn</code></li>
+              <li>Invalid check-in must return a descriptive error without mutating ticket state</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="refund">
+          <div class="rule-header"><span class="rule-badge rb-refund">Refund</span><span class="rule-title">Refund
+              request constraints</span></div>
+          <div class="rule-body">
+            <ul>
+              <li>Booking must have status <code>Paid</code></li>
+              <li>None of the booking's tickets may be <code>CheckedIn</code></li>
+              <li>Must be within the refund deadline (unless the event was cancelled)</li>
+              <li>If event is cancelled, refund is automatically allowed regardless of deadline</li>
+              <li>Raises <code>RefundRequested</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="rule-card" data-cat="refund">
+          <div class="rule-header"><span class="rule-badge rb-refund">Refund</span><span class="rule-title">Refund
+              approval / rejection / payout</span></div>
+          <div class="rule-body">
+            <ul>
+              <li><strong>Approve:</strong> only if status is <code>Requested</code> → <code>Approved</code>; tickets →
+                <code>Cancelled</code>; booking → <code>Refunded</code>
+              </li>
+              <li><strong>Reject:</strong> only if status is <code>Requested</code> → <code>Rejected</code>; rejection
+                reason is mandatory; booking remains <code>Paid</code></li>
+              <li><strong>Pay out:</strong> only if status is <code>Approved</code> → <code>PaidOut</code>; payment
+                reference must be recorded; terminal state</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:32px">Status state machines</div>
+      <div class="sm-block">
+        <div class="sm-row">
+          <div class="sm-label">Event</div>
+          <div class="sm-flow">
+            <span class="spill sp-draft">Draft</span><span class="arrow-sm">→</span>
+            <span class="spill sp-pub">Published</span><span class="arrow-sm">→</span>
+            <span class="spill sp-cancel">Cancelled</span>
+            <span class="arrow-sm" style="margin-left:8px">or</span>
+            <span class="spill sp-complete" style="margin-left:8px">Completed</span>
+          </div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-label">Booking</div>
+          <div class="sm-flow" style="flex-wrap:wrap;row-gap:8px">
+            <span class="spill sp-pending">PendingPayment</span><span class="arrow-sm">→</span>
+            <span class="spill sp-paid">Paid</span><span class="arrow-sm">→</span>
+            <span class="spill sp-refunded">Refunded</span>
+            <span class="arrow-sm" style="margin:0 8px">|</span>
+            <span class="spill sp-pending">PendingPayment</span><span class="arrow-sm">→</span>
+            <span class="spill sp-expired">Expired</span>
+          </div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-label">Ticket</div>
+          <div class="sm-flow">
+            <span class="spill sp-active">Active</span><span class="arrow-sm">→</span>
+            <span class="spill sp-checked">CheckedIn</span>
+            <span class="arrow-sm" style="margin:0 8px">|</span>
+            <span class="spill sp-active">Active</span><span class="arrow-sm">→</span>
+            <span class="spill sp-cancel">Cancelled</span>
+          </div>
+        </div>
+        <div class="sm-row">
+          <div class="sm-label">Refund</div>
+          <div class="sm-flow">
+            <span class="spill sp-requested">Requested</span><span class="arrow-sm">→</span>
+            <span class="spill sp-approved">Approved</span><span class="arrow-sm">→</span>
+            <span class="spill sp-paidout">PaidOut</span>
+            <span class="arrow-sm" style="margin:0 8px">|</span>
+            <span class="spill sp-requested">Requested</span><span class="arrow-sm">→</span>
+            <span class="spill sp-rejected">Rejected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB 3: DOMAIN MODEL ── -->
+    <div class="tab-pane" id="tab-model">
+      <div class="section-label" style="margin-top:0">Aggregate roots</div>
+      <div class="model-grid">
+        <div class="model-card">
+          <div class="mc-head"><span class="mc-title">Event</span><span class="mc-badge mb-agg">Aggregate Root</span>
+          </div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>id</span><span class="mc-field-type">EventId</span></div>
+            <div class="mc-field"><span>name</span><span class="mc-field-type">string</span></div>
+            <div class="mc-field"><span>description</span><span class="mc-field-type">string</span></div>
+            <div class="mc-field"><span>startDate / endDate</span><span class="mc-field-type">Date</span></div>
+            <div class="mc-field"><span>location</span><span class="mc-field-type">string</span></div>
+            <div class="mc-field"><span>maxCapacity</span><span class="mc-field-type">number</span></div>
+            <div class="mc-field"><span>status</span><span class="mc-field-type">EventStatus</span></div>
+            <div class="mc-field"><span>organizerId</span><span class="mc-field-type">UserId</span></div>
+            <div class="mc-field"><span>ticketCategories</span><span class="mc-field-type">TicketCategory[]</span></div>
+          </div>
+        </div>
+        <div class="model-card">
+          <div class="mc-head"><span class="mc-title">Booking</span><span class="mc-badge mb-agg">Aggregate Root</span>
+          </div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>id</span><span class="mc-field-type">BookingId</span></div>
+            <div class="mc-field"><span>eventId</span><span class="mc-field-type">EventId</span></div>
+            <div class="mc-field"><span>customerId</span><span class="mc-field-type">UserId</span></div>
+            <div class="mc-field"><span>ticketCategoryId</span><span class="mc-field-type">TicketCategoryId</span></div>
+            <div class="mc-field"><span>quantity</span><span class="mc-field-type">number</span></div>
+            <div class="mc-field"><span>totalPrice</span><span class="mc-field-type">Money</span></div>
+            <div class="mc-field"><span>status</span><span class="mc-field-type">BookingStatus</span></div>
+            <div class="mc-field"><span>paymentDeadline</span><span class="mc-field-type">Date</span></div>
+            <div class="mc-field"><span>tickets</span><span class="mc-field-type">Ticket[]</span></div>
+          </div>
+        </div>
+        <div class="model-card">
+          <div class="mc-head"><span class="mc-title">Refund</span><span class="mc-badge mb-agg">Aggregate Root</span>
+          </div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>id</span><span class="mc-field-type">RefundId</span></div>
+            <div class="mc-field"><span>bookingId</span><span class="mc-field-type">BookingId</span></div>
+            <div class="mc-field"><span>amount</span><span class="mc-field-type">Money</span></div>
+            <div class="mc-field"><span>status</span><span class="mc-field-type">RefundStatus</span></div>
+            <div class="mc-field"><span>reason</span><span class="mc-field-type">string?</span></div>
+            <div class="mc-field"><span>rejectionReason</span><span class="mc-field-type">string?</span></div>
+            <div class="mc-field"><span>paymentReference</span><span class="mc-field-type">string?</span></div>
+            <div class="mc-field"><span>requestedAt</span><span class="mc-field-type">Date</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Entities (child of aggregate)</div>
+      <div class="model-grid">
+        <div class="model-card">
+          <div class="mc-head"><span class="mc-title">TicketCategory</span><span class="mc-badge mb-ent">Entity</span>
+          </div>
+          <div class="mc-sub">Owned by Event aggregate</div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>id</span><span class="mc-field-type">TicketCategoryId</span></div>
+            <div class="mc-field"><span>name</span><span class="mc-field-type">string</span></div>
+            <div class="mc-field"><span>price</span><span class="mc-field-type">Money</span></div>
+            <div class="mc-field"><span>quota</span><span class="mc-field-type">number</span></div>
+            <div class="mc-field"><span>remainingQuota</span><span class="mc-field-type">number</span></div>
+            <div class="mc-field"><span>salesStart / salesEnd</span><span class="mc-field-type">Date</span></div>
+            <div class="mc-field"><span>status</span><span class="mc-field-type">TicketCategoryStatus</span></div>
+          </div>
+        </div>
+        <div class="model-card">
+          <div class="mc-head"><span class="mc-title">Ticket</span><span class="mc-badge mb-ent">Entity</span></div>
+          <div class="mc-sub">Owned by Booking aggregate</div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>id</span><span class="mc-field-type">TicketId</span></div>
+            <div class="mc-field"><span>bookingId</span><span class="mc-field-type">BookingId</span></div>
+            <div class="mc-field"><span>code</span><span class="mc-field-type">TicketCode</span></div>
+            <div class="mc-field"><span>status</span><span class="mc-field-type">TicketStatus</span></div>
+            <div class="mc-field"><span>checkedInAt</span><span class="mc-field-type">Date?</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Value objects</div>
+      <div class="model-grid">
+        <div class="model-card" style="border-left:2px solid var(--amber)">
+          <div class="mc-head"><span class="mc-title">Money</span><span class="mc-badge mb-vo">Value Object</span></div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>amount</span><span class="mc-field-type">number (≥ 0)</span></div>
+            <div class="mc-field"><span>currency</span><span class="mc-field-type">string (e.g. IDR)</span></div>
+          </div>
+          <div class="mc-note">Immutable. Equality by value. add() / subtract() return new Money.</div>
+        </div>
+        <div class="model-card" style="border-left:2px solid var(--amber)">
+          <div class="mc-head"><span class="mc-title">TicketCode</span><span class="mc-badge mb-vo">Value Object</span>
+          </div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>value</span><span class="mc-field-type">string (unique)</span></div>
+          </div>
+          <div class="mc-note">Generated once on payment. Immutable. Equality by value.</div>
+        </div>
+        <div class="model-card" style="border-left:2px solid var(--amber)">
+          <div class="mc-head"><span class="mc-title">Status VOs</span><span class="mc-badge mb-vo">Value Object</span>
+          </div>
+          <div class="mc-fields">
+            <div class="mc-field"><span>EventStatus</span><span class="mc-field-type"
+                style="font-size:10px">Draft|Published|Cancelled|Completed</span></div>
+            <div class="mc-field"><span>BookingStatus</span><span class="mc-field-type"
+                style="font-size:10px">PendingPayment|Paid|Expired|Refunded</span></div>
+            <div class="mc-field"><span>TicketStatus</span><span class="mc-field-type"
+                style="font-size:10px">Active|CheckedIn|Cancelled</span></div>
+            <div class="mc-field"><span>RefundStatus</span><span class="mc-field-type"
+                style="font-size:10px">Requested|Approved|Rejected|PaidOut</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Domain services</div>
+      <div class="model-grid">
+        <div class="model-card" style="border-left:2px solid var(--blue)">
+          <div class="mc-head"><span class="mc-title">BookingPricingService</span><span class="mc-badge mb-svc">Domain
+              Service</span></div>
+          <div class="mc-fields" style="padding:12px 16px">
+            <p style="font-size:13px;color:var(--text2)">Calculates <code
+                style="font-family:var(--font-mono);font-size:11px;background:var(--bg4);padding:1px 5px;border-radius:4px;color:var(--teal)">totalPrice</code>
+              = (unit price × quantity) + service fee. Returns a <code
+                style="font-family:var(--font-mono);font-size:11px;background:var(--bg4);padding:1px 5px;border-radius:4px;color:var(--teal)">Money</code>
+              VO. Used by CreateBooking command handler.</p>
+          </div>
+        </div>
+        <div class="model-card" style="border-left:2px solid var(--blue)">
+          <div class="mc-head"><span class="mc-title">TicketCodeGeneratorService</span><span
+              class="mc-badge mb-svc">Domain Service</span></div>
+          <div class="mc-fields" style="padding:12px 16px">
+            <p style="font-size:13px;color:var(--text2)">Generates unique, unguessable ticket codes on booking payment.
+              Returns a <code
+                style="font-family:var(--font-mono);font-size:11px;background:var(--bg4);padding:1px 5px;border-radius:4px;color:var(--teal)">TicketCode</code>
+              VO per ticket.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Domain events emitted</div>
+      <div class="events-row">
+        <span class="ev-tag">EventCreated</span>
+        <span class="ev-tag">EventPublished</span>
+        <span class="ev-tag">EventCancelled</span>
+        <span class="ev-tag">TicketCategoryCreated</span>
+        <span class="ev-tag">TicketCategoryDisabled</span>
+        <span class="ev-tag">TicketReserved</span>
+        <span class="ev-tag">BookingPaid</span>
+        <span class="ev-tag">BookingExpired</span>
+        <span class="ev-tag">TicketCheckedIn</span>
+        <span class="ev-tag">RefundRequested</span>
+        <span class="ev-tag">RefundApproved</span>
+        <span class="ev-tag">RefundRejected</span>
+        <span class="ev-tag">RefundPaidOut</span>
+      </div>
+    </div>
+
+    <!-- ── TAB 4: GLOSSARY ── -->
+    <div class="tab-pane" id="tab-glossary">
+      <div class="gloss-section">
+        <div class="gloss-head">Core domain</div>
+        <table class="gloss-table">
+          <tr>
+            <th>Term</th>
+            <th>Definition</th>
+            <th>Layer</th>
+          </tr>
+          <tr>
+            <td>Event</td>
+            <td>An activity created by an Event Organizer that customers can attend by purchasing tickets. Lifecycle:
+              Draft → Published → Completed/Cancelled.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>TicketCategory</td>
+            <td>A named type of ticket (Regular, VIP, Early Bird) with its own price, quota, and sales period. Owned by
+              the Event aggregate.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>Quota</td>
+            <td>The maximum number of tickets available in a given TicketCategory. Decremented on booking creation;
+              restored on expiry.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>SalesPeriod</td>
+            <td>The date range during which a TicketCategory can be purchased. Must end on or before the Event start
+              date.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>Booking</td>
+            <td>A temporary reservation of tickets created by a Customer. Holds status PendingPayment until paid or
+              expired.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>PaymentDeadline</td>
+            <td>Timestamp 15 minutes after booking creation. If payment is not completed in time, the booking expires
+              and quota is released.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>Ticket</td>
+            <td>Proof of attendance generated for each unit in a paid Booking. Unique TicketCode. Lifecycle: Active →
+              CheckedIn/Cancelled.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>TicketCode</td>
+            <td>Immutable, unique string used to validate a Ticket at the venue. Generated once upon payment.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>CheckIn</td>
+            <td>The act of validating a Ticket at the gate. Transitions Ticket from Active to CheckedIn. A checked-in
+              ticket cannot be reused.</td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>Refund</td>
+            <td>A request to return the amount paid for a Booking. Lifecycle: Requested → Approved/Rejected → PaidOut.
+            </td>
+            <td>Domain</td>
+          </tr>
+          <tr>
+            <td>Money</td>
+            <td>A value object representing a monetary amount and currency. Immutable; arithmetic returns new Money
+              instances. Cannot be negative.</td>
+            <td>Domain</td>
+          </tr>
+        </table>
+      </div>
+      <div class="gloss-section">
+        <div class="gloss-head">Actors</div>
+        <table class="gloss-table">
+          <tr>
+            <th>Term</th>
+            <th>Definition</th>
+            <th>Role</th>
+          </tr>
+          <tr>
+            <td>EventOrganizer</td>
+            <td>Creates events, manages ticket categories, approves/rejects refunds, and views sales reports.</td>
+            <td>Organizer</td>
+          </tr>
+          <tr>
+            <td>Customer</td>
+            <td>Browses events, creates bookings, pays, views tickets, and requests refunds.</td>
+            <td>Consumer</td>
+          </tr>
+          <tr>
+            <td>GateOfficer</td>
+            <td>Validates and checks in tickets at the event venue.</td>
+            <td>Staff</td>
+          </tr>
+          <tr>
+            <td>SystemAdmin</td>
+            <td>Triggers refund payout to customers and monitors operational processes.</td>
+            <td>Admin</td>
+          </tr>
+        </table>
+      </div>
+      <div class="gloss-section">
+        <div class="gloss-head">Application layer concepts</div>
+        <table class="gloss-table">
+          <tr>
+            <th>Term</th>
+            <th>Definition</th>
+            <th>Layer</th>
+          </tr>
+          <tr>
+            <td>Command</td>
+            <td>An intent to change system state (e.g. CreateEvent, PayBooking). Handled by a CommandHandler which
+              orchestrates the domain.</td>
+            <td>Application</td>
+          </tr>
+          <tr>
+            <td>Query</td>
+            <td>A request to read data without side effects (e.g. GetAvailableEvents). Handled by a QueryHandler
+              returning a DTO.</td>
+            <td>Application</td>
+          </tr>
+          <tr>
+            <td>DTO</td>
+            <td>Data Transfer Object — a plain data structure used to communicate between layers. Contains no business
+              logic.</td>
+            <td>Application</td>
+          </tr>
+          <tr>
+            <td>Port</td>
+            <td>An interface defined in Application that Infrastructure must implement (e.g. IPaymentGateway,
+              INotificationService).</td>
+            <td>Application</td>
+          </tr>
+        </table>
+      </div>
+      <div class="gloss-section">
+        <div class="gloss-head">Status enumerations</div>
+        <table class="gloss-table">
+          <tr>
+            <th>Term</th>
+            <th>Definition</th>
+            <th>Context</th>
+          </tr>
+          <tr>
+            <td>Draft</td>
+            <td>Initial status of a newly created Event. Not visible to customers.</td>
+            <td>Event</td>
+          </tr>
+          <tr>
+            <td>Published</td>
+            <td>Event is visible and bookable by customers.</td>
+            <td>Event</td>
+          </tr>
+          <tr>
+            <td>PendingPayment</td>
+            <td>Booking created; customer has 15 minutes to complete payment.</td>
+            <td>Booking</td>
+          </tr>
+          <tr>
+            <td>Paid</td>
+            <td>Booking payment completed; tickets have been issued.</td>
+            <td>Booking</td>
+          </tr>
+          <tr>
+            <td>Expired</td>
+            <td>Payment deadline passed without payment; quota released.</td>
+            <td>Booking</td>
+          </tr>
+          <tr>
+            <td>Refunded</td>
+            <td>Booking whose refund has been approved; tickets are cancelled.</td>
+            <td>Booking</td>
+          </tr>
+          <tr>
+            <td>Active</td>
+            <td>Ticket is valid and has not yet been used.</td>
+            <td>Ticket</td>
+          </tr>
+          <tr>
+            <td>CheckedIn</td>
+            <td>Ticket has been validated at the gate; cannot be reused.</td>
+            <td>Ticket</td>
+          </tr>
+          <tr>
+            <td>PaidOut</td>
+            <td>Terminal state of a Refund; money has been returned to the customer.</td>
+            <td>Refund</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- .page -->
+
+  <script>
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      btn.classList.add('active');
+    }
+    function filterRules(cat, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      document.querySelectorAll('.rule-card').forEach(c => {
+        c.style.display = (cat === 'all' || c.dataset.cat === cat) ? 'block' : 'none';
+      });
+    }
+  </script>
+</body>
+
+</html>
