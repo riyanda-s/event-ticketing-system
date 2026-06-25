@@ -11,6 +11,7 @@ Backend system untuk manajemen tiket dan booking event, dibangun dengan **Clean 
 ## Authors
 
 - [@riyanda-s](https://www.github.com/riyanda-s) - 5025221100
+- Ahmad Hafiz Mahardika - 5025201196
 
 ## Tech Stack
 
